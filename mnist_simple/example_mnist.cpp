@@ -90,14 +90,18 @@ int main(int argc, const char* argv[]) {
   cout << "test input features: " << testing_features.column_count() << endl;
 
   // Build network
-  layer l1(context, new hyperbolic_tangent(), 25, feature_count);
+  layer l1(context, new sigmoid_activation(), 25, feature_count);
   layer l2(context, new softmax_activation(), 10, 25);
   network net(context, {l1, l2});
 
   // Train
-  minibatch_gradient_descent minibatch(10U, 0.009, 50U);
+  size_t epochs = 10U;
+  double learning_rate = 0.03;
+  double weight_decay = 0.1;
+  size_t batch_size = 50U;
+  minibatch_gradient_descent trainer(epochs, learning_rate, batch_size);
   label_map map({0, 1, 2, 3, 4, 5, 6, 7, 8, 9});
-  minibatch.set_stop_early([&](const network& nw, size_t epoch, double cost)
+  trainer.set_stop_early([&](const network& nw, size_t epoch, double cost)
                                -> bool {
     // stop early based on performance on the validation set
     matrix predictions = nw.forward(validation_features);
@@ -113,7 +117,8 @@ int main(int argc, const char* argv[]) {
 
   matrix target_activations = map.labels_to_activations(training_labels);
   cross_entropy_cost cost_function;
-  minibatch.train(net, training_features, target_activations, cost_function);
+  l2_regularizer regularizer(weight_decay);
+  trainer.train(net, training_features, target_activations, cost_function, regularizer);
 
   // Test
   matrix predictions = net.forward(testing_features);
@@ -123,6 +128,6 @@ int main(int argc, const char* argv[]) {
   cout << "Results on test set:" << endl;
   cout << measurements << endl;
 
-  return 0;
+  exit(0);
 }
 
